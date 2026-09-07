@@ -45,7 +45,7 @@ def resolve_percept(value):
 
 
 def build(role="bass", vintage=2, subject="fashion", budget_words=data.DEFAULT_BUDGET,
-          scene=None, lens=None, percept=None, seed=0, stylize=None, ar=None, fill=True):
+          scene=None, lens=None, percept=None, seed=0, stylize=None, ar=None, fill=False):
     if subject not in data.SUBJECTS:
         raise BuildError("未知の subject: %s（%s）" % (subject, " / ".join(data.SUBJECTS)))
     if budget_words < 20:

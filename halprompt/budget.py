@@ -45,10 +45,11 @@ def _total(variants, chosen):
     return sum(word_count(variants[m][chosen[m]]) for m in MODULE_IDS)
 
 
-def plan(variants, subject, budget, percept_words=0, fill=True):
-    """配分・選択・超過処理・（拡張）余剰の再配分までを行う。
+def plan(variants, subject, budget, percept_words=0, fill=False):
+    """配分・選択・超過処理・（任意）余剰の再配分までを行う。
 
-    percept_words は M4 の語数。総語数を予算内に収めるため先に差し引く。
+    budget は目標ではなく**上限**である。下回るのは正常な出力であり、警告しない。
+    percept_words は M4 の語数。総語数を上限内に収めるため先に差し引く。
     """
     module_budget = max(1, budget - percept_words)
     # 表現可能な語数の下限・上限。予算がこの外側にあると ±10% は原理的に満たせない。
@@ -59,25 +60,26 @@ def plan(variants, subject, budget, percept_words=0, fill=True):
     target = SUBJECT_MODULE.get(subject)
     notes = []
 
-    # 超過処理: subject 以外を M3 → M2 → M1 (→ M0) の順に1段ずつ落とす
+    # 超過処理: subject 以外を M3 → M2 → M1 (→ M0) の順に1段ずつ落とす。
+    # subject のモジュールは「最後まで」落とさない ＝ 他が尽きた時だけ落とす。
+    # budget は上限なので、最後の1段まで使い切って上限内に入れる。
     while _total(variants, chosen) > module_budget:
+        order_down = [m for m in DEGRADE_ORDER if m != target] + ([target] if target else [])
         dropped = False
-        for m in DEGRADE_ORDER:
-            if m == target:
-                continue
+        for m in order_down:
             nxt = _STEP_DOWN[chosen[m]]
             if nxt is not None:
-                notes.append("超過処理: %s %s→%s" % (m, chosen[m], nxt))
+                notes.append("超過処理: %s %s→%s%s"
+                             % (m, chosen[m], nxt, "（subject・最終手段）" if m == target else ""))
                 chosen[m] = nxt
                 dropped = True
                 break
         if not dropped:
-            notes.append("超過処理: これ以上落とせるモジュールが無い")
+            notes.append("超過処理: 全モジュールが short。これ以上は落とせない")
             break
 
-    # 拡張: 余剰語数の再配分（予算 ±10% を満たすため。--no-fill で無効化）
-    # 第1段: 予算内に収まる範囲で1段ずつ上げる。
-    # 第2段: それでも下限90%に届かない場合のみ、上限110%を超えない範囲で1段上げる。
+    # 任意: 余剰語数の再配分（既定は無効。--fill で明示的に有効化する）
+    # 予算は上限なので、上限を超えない範囲でのみ1段ずつ上げる。
     if fill:
         order = ([target] if target else []) + [m for m in MODULE_IDS if m != target]
 
@@ -96,24 +98,16 @@ def plan(variants, subject, budget, percept_words=0, fill=True):
 
         while _upgrade_pass(module_budget, "余剰再配分"):
             pass
-        upper = budget * 1.10 - percept_words
-        while (_total(variants, chosen) + percept_words) < budget * 0.90:
-            if not _upgrade_pass(upper, "下限充足"):
-                break
 
     # 配置順: subject を先頭に置く（原則1）。以降は M0 → M1 → M2 → M3。
     order = ([target] if target else []) + [m for m in MODULE_IDS if m != target]
 
-    # 予算 ±10% に収まらない場合、その理由を必ず添える（黙って外さない）。
+    # 上限を超えた場合だけ警告する。下回るのは正常な出力であり、警告に値しない。
     final_total = _total(variants, chosen) + percept_words
-    if final_total > budget * 1.10:
-        notes.append("警告: 予算 %d に対し %d words。subject モジュールを残したままの"
-                     "最短構成が %d words のため、これ以上は縮められません（表現可能下限 %d words）"
-                     % (budget, final_total, final_total, floor_words))
-    elif final_total < budget * 0.90:
-        notes.append("警告: 予算 %d に対し %d words。語彙の最長構成が %d words のため、"
-                     "これ以上は伸ばせません（M4 予約 %d words を含む）"
-                     % (budget, final_total, ceiling_words, percept_words))
+    if final_total > budget:
+        notes.append("警告: 上限 %d words に対し %d words。subject モジュールを残したままの"
+                     "最短構成がこの長さのため、これ以上は縮められません（語彙の下限 %d words）"
+                     % (budget, final_total, floor_words))
 
     rows = []
     for m in order:

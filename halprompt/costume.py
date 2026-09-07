@@ -8,6 +8,7 @@
 import random
 
 from . import data
+from .lint import redundancy_of
 from .util import cap, squeeze, word_count
 
 
@@ -84,7 +85,16 @@ class Costume(object):
         self.silhouette = silhouette
         self.upper_cut = upper_cut
         self.attempts = attempts
+        self._fragments = None
         self.conformance = evaluate(self)
+        # §5 の冗長検査を各断片に対して個別に掛ける。
+        # （long/mid/short は排他的に使われるので、連結して検査してはならない）
+        self.redundancy = []
+        for variant, text in sorted(self.fragments().items()):
+            for f in redundancy_of(text):
+                item = dict(f)
+                item["variant"] = variant
+                self.redundancy.append(item)
 
     # ── 参照補助 ──────────────────────────────────────────
     def zone(self, key):
@@ -105,12 +115,19 @@ class Costume(object):
     def conforms(self):
         return all(c["ok"] for c in self.conformance["conditions"])
 
+    @property
+    def clean(self):
+        """規格に適合し、かつ断片に重複が残っていない。"""
+        return self.conforms and not self.redundancy
+
     # ── §2-3 出力 ────────────────────────────────────────
     def fragment(self, variant):
-        return FRAGMENTS[variant](self)
+        return self.fragments()[variant]
 
     def fragments(self):
-        return {v: self.fragment(v) for v in ("long", "mid", "short")}
+        if self._fragments is None:      # 同一個体では毎回同じ文字列になる
+            self._fragments = {v: FRAGMENTS[v](self) for v in ("long", "mid", "short")}
+        return self._fragments
 
     def to_dict(self):
         return {
@@ -128,6 +145,7 @@ class Costume(object):
             "zones": [self.zones[k].to_dict() for k in data.ZONE_ORDER],
             "patches": [p.to_dict() for p in self.patches],
             "conformance": self.conformance,
+            "redundancy": self.redundancy,
             "fragments": self.fragments(),
         }
 
@@ -157,7 +175,7 @@ def human_distance(costume):
 
 def zone_d_covered(costume):
     """ZONE_D 遮蔽率。衣装記述に頭部・顔・手袋の語が無ければ 0。"""
-    body = " ".join(costume.fragment(v) for v in ("long", "mid", "short")).lower()
+    body = " ".join(costume.fragments().values()).lower()
     hits = [t for t in data.ZONE_D_FORBIDDEN_TERMS if t in body]
     return (0.0 if not hits else 1.0), hits
 
@@ -265,7 +283,10 @@ def _attempt(rnd, role, vintage, seed, attempt_no):
 
 
 def generate(role="bass", vintage=2, seed=0):
-    """規格適合するまで再計算する。最大300回。300回超なら最後の案を返す。"""
+    """規格適合し、かつ冗長が残らないまで再計算する。
+
+    最大300回。300回超なら最後の案を返す（§2-1 手順9）。
+    """
     if role not in data.ROLES:
         raise ValueError("未知の role: %s" % role)
     if vintage not in data.VINTAGES:
@@ -274,7 +295,7 @@ def generate(role="bass", vintage=2, seed=0):
     last = None
     for i in range(1, MAX_ATTEMPTS + 1):
         last = _attempt(rnd, role, vintage, seed, i)
-        if last.conforms:
+        if last.clean:
             return last
     return last
 

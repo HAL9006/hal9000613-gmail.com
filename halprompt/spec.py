@@ -79,7 +79,8 @@ def format_allocation(plan_result, variants):
     from .modules import MODULE_LABELS
     out = []
     out.append(RULE)
-    out.append("配分表  subject=%s / budget=%d words" % (plan_result["subject"], plan_result["budget"]))
+    out.append("配分表  subject=%s / budget=%d words（上限）" % (
+        plan_result["subject"], plan_result["budget"]))
     out.append(RULE)
     out.append("  %s %s %s %s %s" % (pad("", 4), pad("モジュール", 24),
                                       pad("割当語数", 10), pad("実語数", 8), "バリアント"))
@@ -94,10 +95,9 @@ def format_allocation(plan_result, variants):
             pad(str(plan_result["percept_words"]), 8), "-"))
     total = plan_result["total_words"]
     budget = plan_result["budget"]
-    ratio = 100.0 * total / budget if budget else 0.0
     out.append("  " + "-" * 56)
-    out.append("  合計 %d words / 予算 %d words（%.1f%%・許容 90-110%%）%s" % (
-        total, budget, ratio, "" if 90.0 <= ratio <= 110.0 else "　※範囲外"))
+    out.append("  合計 %d words / 上限 %d words%s" % (
+        total, budget, "" if total <= budget else "　※上限超過"))
     for n in plan_result["notes"]:
         out.append("  ・%s" % n)
     return "\n".join(out)

@@ -7,6 +7,8 @@
 
 # ── §1-1 柄クラス（PATTERN CLASS） ────────────────────────────
 # unit_en は英語断片で使う寸法の言い方。
+# 語彙に色名を含めてはならない。配色は §1-2 の明度差から独立に決まるため、
+# 語彙側に色が埋まっていると "dot grid, deep crimson on ecru" のような矛盾が出る。
 PATTERN_CLASSES = {
     "P1": {
         "name_ja": "円形",
@@ -20,7 +22,7 @@ PATTERN_CLASSES = {
         "vocab": [
             "large scale polka dot",
             "oversized dot field",
-            "amber dot grid",
+            "dot grid",
         ],
     },
     "P2": {
@@ -35,7 +37,7 @@ PATTERN_CLASSES = {
         "vocab": [
             "wide stripe",
             "broad rib stripe",
-            "narrow ochre pinstripe",
+            "narrow pinstripe",
         ],
     },
     "P3": {
@@ -48,7 +50,7 @@ PATTERN_CLASSES = {
         "large_mm": 80,
         "fg_ratio": 0.45,
         "vocab": [
-            "black tartan",
+            "tartan",
             "houndstooth",
             "glen check",
             "oversized windowpane check",

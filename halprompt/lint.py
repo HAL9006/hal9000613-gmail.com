@@ -53,6 +53,26 @@ PLAIN_GROUPS = {
     },
 }
 
+# ── REDUNDANCY（冗長検査） ──────────────────────────────────
+# 「重複が存在するか否か」だけを見る。文章の良し悪し・自然さは判定しない。
+SYNONYM_PAIRS = [
+    ("clear of her body", "leaned away"),
+    ("seen from her open", "seen from the side"),
+    ("played in a relaxed", "in a seasoned style"),
+    ("strong backlighting", "backlit"),
+    ("monochrome", "black and white"),
+]
+
+# 3-gram がこれだけで構成される場合は数えない。
+STOPWORDS = {
+    "a", "an", "the", "and", "or", "of", "to", "in", "on", "at", "by", "with",
+    "for", "from", "as", "is", "are", "was", "were", "be", "been", "it", "its",
+    "her", "his", "she", "he", "they", "them", "their", "this", "that", "these",
+    "those", "so", "then", "than", "not", "no", "one", "two", "up", "out",
+}
+
+N_GRAM = 3
+
 PRIMARY_MARKERS = ["holding", "seated at", "hands on", "playing", "bow in the"]
 ACCOMP_MARKERS = ["behind her", "flanking", "quartet", "trio", "band", "in the background"]
 
@@ -155,14 +175,49 @@ def _blur_violations(body, percept_keys):
     return [t for t in data.BLUR_TERMS if re.search(_alt([t]), low)]
 
 
+def _redundancy(body):
+    """楽器名の反復 / 同義句の同居 / 3-gram の重複 を検出する。"""
+    norm = re.sub(r"\s+", " ", body.lower())
+    findings = []
+
+    for inst in sorted({spec["instrument"].lower() for spec in data.ROLES.values()}):
+        n = len(re.findall(_alt([inst]), norm))
+        if n >= 2:
+            findings.append({"kind": "楽器名の反復", "detail": "%s ×%d" % (inst, n)})
+
+    for a, b in SYNONYM_PAIRS:
+        if a in norm and b in norm:
+            findings.append({"kind": "同義句の同居", "detail": "%s ／ %s" % (a, b)})
+
+    tokens = re.findall(r"[a-z0-9']+", norm)
+    counts = {}
+    for i in range(len(tokens) - N_GRAM + 1):
+        gram = tuple(tokens[i:i + N_GRAM])
+        if all(t in STOPWORDS for t in gram):
+            continue
+        counts[gram] = counts.get(gram, 0) + 1
+    for gram in sorted(counts):
+        if counts[gram] >= 2:
+            findings.append({"kind": "%d-gramの重複" % N_GRAM,
+                             "detail": "%s ×%d" % (" ".join(gram), counts[gram])})
+    return findings
+
+
+def redundancy_of(text):
+    """本文の重複だけを検査する（生成器の再計算条件から呼ばれる）。"""
+    return _redundancy(strip_params(text))
+
+
 def lint(text, role=None, percept_keys=None):
     body = strip_params(text)
     inst_findings, inst_hits, ignored = _scan_instruments(body)
     findings = inst_findings + _scan_plain(body)
     role_bad = _role_violations(body, role)
     blur_bad = _blur_violations(body, percept_keys)
+    redundancy = _redundancy(body)
     return {
-        "ok": not findings and not role_bad and not blur_bad,
+        "ok": not findings and not role_bad and not blur_bad and not redundancy,
+        "redundancy": redundancy,
         "conflicts": findings,
         "instruments_in_scope": inst_hits,
         "instruments_out_of_scope": ignored,
@@ -174,7 +229,7 @@ def lint(text, role=None, percept_keys=None):
 def format_report(result):
     lines = []
     if result["ok"]:
-        lines.append("✅ 競合なし（排他グループ・role除外語・原則8 すべて通過）")
+        lines.append("✅ 競合なし（排他グループ・role除外語・原則8・冗長検査 すべて通過）")
     for f in result["conflicts"]:
         detail = " / ".join("%s: %s" % (k, ", ".join(v)) for k, v in sorted(f["matches"].items()))
         lines.append("⚠️ [%s] %d種類が同居しています → %s" % (f["group"], len(f["variants"]), detail))
@@ -184,4 +239,6 @@ def format_report(result):
         lines.append("⚠️ [role除外] この用途等級で禁止された楽器が本文にあります: %s" % t)
     for t in result["blur_violations"]:
         lines.append("⚠️ [原則8] L6 採用時に排他すべき語があります: %s" % t)
+    for f in result.get("redundancy", []):
+        lines.append("⚠️ [冗長] %s: %s" % (f["kind"], f["detail"]))
     return "\n".join(lines)

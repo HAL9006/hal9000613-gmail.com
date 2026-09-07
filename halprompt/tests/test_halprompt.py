@@ -127,26 +127,43 @@ class TestConformance(unittest.TestCase):
 class TestBudget(unittest.TestCase):
     """§4 語数予算配分。"""
 
-    def test_within_ten_percent(self):
+    def test_within_budget(self):
+        """budget は上限。下回るのは正常な出力である。"""
         for seed in (0, 7, 777):
             for role in ROLES:
                 for subject in data.SUBJECTS:
                     for b in (100, 130, 150, 170, 190):
-                        res = build(role=role, subject=subject, budget_words=b, seed=seed)
-                        ratio = 100.0 * word_count(res["body"]) / b
-                        self.assertTrue(
-                            90.0 <= ratio <= 110.0,
-                            "%s/%s/%d → %.1f%%" % (role, subject, b, ratio))
+                        for fill in (False, True):
+                            res = build(role=role, subject=subject, budget_words=b,
+                                        seed=seed, fill=fill)
+                            self.assertLessEqual(
+                                word_count(res["body"]), b,
+                                "%s/%s/%d/fill=%s" % (role, subject, b, fill))
 
-    def test_out_of_band_always_warns(self):
-        """表現可能域の外に出た場合は、必ず理由を添えること（黙って外さない）。"""
-        for b in (40, 60, 300, 400):
+    def test_under_budget_never_warns(self):
+        """予算未達は正常。警告に値しない。"""
+        for b in (150, 200, 300, 400):
             for subject in data.SUBJECTS:
                 res = build(subject=subject, budget_words=b, seed=3)
-                ratio = 100.0 * word_count(res["body"]) / b
-                if not (90.0 <= ratio <= 110.0):
+                self.assertLessEqual(word_count(res["body"]), b)
+                self.assertEqual([n for n in res["plan"]["notes"] if n.startswith("警告")], [])
+
+    def test_over_budget_always_warns(self):
+        """最短構成でも上限に収まらない場合だけ、理由を添えて警告する。"""
+        for b in (30, 40, 60):
+            for subject in data.SUBJECTS:
+                res = build(subject=subject, budget_words=b, seed=3)
+                if word_count(res["body"]) > b:
                     self.assertTrue([n for n in res["plan"]["notes"] if n.startswith("警告")],
                                     "budget=%d subject=%s" % (b, subject))
+
+    def test_fill_is_opt_in(self):
+        """既定では余剰再配分を行わない。--fill の時だけ動く。"""
+        default = build(subject="fashion", budget_words=150, seed=777)
+        self.assertEqual([n for n in default["plan"]["notes"] if "余剰再配分" in n], [])
+        filled = build(subject="fashion", budget_words=150, seed=777, fill=True)
+        self.assertGreaterEqual(word_count(filled["body"]), word_count(default["body"]))
+        self.assertLessEqual(word_count(filled["body"]), 150)
 
     def test_subject_module_is_first(self):
         for subject, module in budget_mod.SUBJECT_MODULE.items():
@@ -172,8 +189,8 @@ class TestBudget(unittest.TestCase):
         for m in modules.MODULE_IDS:
             self.assertAlmostEqual(even[m], 50.0)
 
-    def test_no_fill_stays_within_allocation(self):
-        res = build(subject="fashion", budget_words=150, seed=4, fill=False)
+    def test_default_stays_within_allocation(self):
+        res = build(subject="fashion", budget_words=150, seed=4)
         for row in res["plan"]["rows"]:
             if row["variant"] != "short":
                 self.assertLessEqual(row["words"], row["allocated"])
@@ -222,6 +239,60 @@ class TestLint(unittest.TestCase):
     def test_role_exclusions(self):
         r = lint.lint("Holding a double bass beside a grand piano.", role="bass")
         self.assertIn("grand piano", r["role_violations"])
+
+
+class TestVocabulary(unittest.TestCase):
+    """修正1: 柄語彙に色名を含めない。配色は §1-2 が独立に決める。"""
+
+    COLOUR_WORDS = sorted(set(list(data.BASE_COLORS) + list(data.HIGH_VIS_COLORS)
+                              + ["ochre", "beige", "grey", "gray", "white", "red"]))
+
+    def test_pattern_vocabulary_has_no_colour(self):
+        for key, spec in data.PATTERN_CLASSES.items():
+            for vocab in spec["vocab"]:
+                for colour in self.COLOUR_WORDS:
+                    self.assertNotIn(colour, vocab.lower(), "%s: %s" % (key, vocab))
+
+    def test_no_colour_word_collides_with_colourway(self):
+        """「色名を含む柄語 + 別の配色指定」が同居しないこと。"""
+        for seed in SEEDS + [3, 11, 55]:
+            for vintage in (1, 2, 3):
+                c = generate("bass", vintage, seed)
+                for z in c.zones.values():
+                    for colour in self.COLOUR_WORDS:
+                        if colour in z.vocab.lower():
+                            self.assertIn(colour, (z.fg.lower(), z.bg.lower()),
+                                          "%s / %s on %s" % (z.vocab, z.fg, z.bg))
+
+
+class TestRedundancy(unittest.TestCase):
+    """修正3: 冗長検査。重複の有無だけを見る。"""
+
+    def test_repeated_instrument(self):
+        r = lint.lint("Holding a double bass, the double bass leaned away.")
+        self.assertFalse(r["ok"])
+        self.assertIn("double bass ×2", [f["detail"] for f in r["redundancy"]])
+
+    def test_synonym_pair(self):
+        r = lint.lint("The instrument leaned away, held clear of her body.")
+        self.assertIn("同義句の同居", [f["kind"] for f in r["redundancy"]])
+
+    def test_repeated_trigram(self):
+        r = lint.lint("A wide stripe bodice over a wide stripe skirt.")
+        self.assertIn("3-gramの重複", [f["kind"] for f in r["redundancy"]])
+
+    def test_stopword_only_trigram_ignored(self):
+        r = lint.lint("It is the same as it is the same.")
+        self.assertNotIn(("3-gramの重複", "it is the"),
+                         [(f["kind"], f["detail"].rsplit(" ×", 1)[0]) for f in r["redundancy"]])
+
+    def test_generated_fragments_are_clean(self):
+        for seed in SEEDS + [3, 11, 55]:
+            for role in ROLES:
+                for vintage in (1, 2, 3):
+                    c = generate(role, vintage, seed)
+                    self.assertEqual(c.redundancy, [], "seed=%s %s v%s" % (seed, role, vintage))
+                    self.assertTrue(c.clean)
 
 
 class TestPrinciples(unittest.TestCase):
@@ -326,7 +397,7 @@ class TestNoAestheticJudgement(unittest.TestCase):
         self.assertEqual(len(c.conformance["conditions"]), 6)
         self.assertEqual(sorted(lint.lint("x").keys()),
                          ["blur_violations", "conflicts", "instruments_in_scope",
-                          "instruments_out_of_scope", "ok", "role_violations"])
+                          "instruments_out_of_scope", "ok", "redundancy", "role_violations"])
 
 
 class TestLocalSovereignty(unittest.TestCase):

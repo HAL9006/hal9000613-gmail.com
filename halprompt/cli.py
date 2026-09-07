@@ -57,8 +57,10 @@ def make_parser():
     b.add_argument("--percept", default=None, help="PERCEPT LENS。例 L6,L4（最大2個）")
     b.add_argument("--stylize", type=int, default=None, help="既定値は subject から決まる（原則6）")
     b.add_argument("--ar", default=None, help="アスペクト比。指定時のみ出力に付す")
+    b.add_argument("--fill", action="store_true",
+                   help="余った語数で上位バリアントに昇格させる（既定は行わない。予算は上限であって目標ではない）")
     b.add_argument("--no-fill", action="store_true",
-                   help="余剰語数の再配分を無効化し、§4 の素の配分だけを使う")
+                   help="余剰再配分を明示的に無効化する（既定と同じ。--fill を打ち消す）")
     _add_common(b)
 
     l = sub.add_parser("lint", help="排他グループの競合を報告する")
@@ -90,7 +92,7 @@ def cmd_build(args):
         role=args.role, vintage=args.vintage, subject=args.subject,
         budget_words=args.budget, scene=args.scene, lens=args.lens,
         percept=args.percept, seed=args.seed, stylize=args.stylize,
-        ar=args.ar, fill=not args.no_fill)
+        ar=args.ar, fill=args.fill and not args.no_fill)
     if args.json:
         print(json.dumps({
             "prompt": res["prompt"],
