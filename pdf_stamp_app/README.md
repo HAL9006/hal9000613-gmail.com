@@ -24,6 +24,30 @@ python app.py --selftest --output out/stamped.pdf
 python app.py --batch --input 図面.pdf --annotations ann.json --output 出力.pdf
 ```
 
+### 目視確認用のプレビュー画像
+
+```bash
+python app.py --preview --out-dir out --dpi 200
+```
+
+`out/` に以下を書き出す（中間 PDF は `.gitignore` 済み。PNG のみコミットしている）。
+
+| ファイル | 内容 |
+| --- | --- |
+| `out/preview_stamped_page1.png` | サンプル図面にスタンプを配置した結果（ページごと） |
+| `out/stamp_catalog_preview.png` | カタログ全種を並べた一覧 |
+
+いずれも**通常の配置パイプライン**（`apply_json_annotations()` → `save_pdf()`）で作った
+PDF を `annots=True` でレンダリングした実物で、プレビュー専用の描画経路は持たない。
+
+#### 配置結果（200dpi）
+
+![配置結果プレビュー](out/preview_stamped_page1.png)
+
+#### スタンプ一覧（200dpi）
+
+![スタンプ一覧プレビュー](out/stamp_catalog_preview.png)
+
 ### 画面操作
 
 | 操作 | 動作 |

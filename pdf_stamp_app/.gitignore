@@ -1,0 +1,3 @@
+# --preview / --selftest が生成する中間 PDF（PNG はコミットする）
+out/*.pdf
+__pycache__/

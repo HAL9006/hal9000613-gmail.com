@@ -29,6 +29,9 @@ GUI (PySide6) はコア層の薄いラッパであり、同じ build_primitives(
 
     自己テスト（サンプルPDFを生成してスタンプを打つ）:
         python app.py --selftest --output /tmp/selftest.pdf
+
+    目視確認用の PNG 書き出し（配置結果とスタンプ一覧）:
+        python app.py --preview --out-dir out --dpi 200
 """
 
 from __future__ import annotations
@@ -1180,6 +1183,30 @@ class MainWindow(QMainWindow):
 # 7. エントリポイント（GUI / ヘッドレス / 自己テスト）
 # =============================================================================
 
+# 組込み CJK フォントで字形が出ない記号の代替（PDF ページに直接描く文字にのみ使う）。
+# 注釈の本文や GUI のパレット表示はシステムフォントで描かれるため置換しない。
+PDF_GLYPH_FALLBACK = {"\u2716": "\u00d7", "\u2715": "\u00d7", "\u2714": "\u2713"}
+
+
+def pdf_safe_text(text: str) -> str:
+    """PDF へ直接描画する文字列から、組込みフォントに字形が無い記号を置き換える。"""
+    return "".join(PDF_GLYPH_FALLBACK.get(ch, ch) for ch in text)
+
+
+def draw_pdf_text(page: Any, rect: Any, text: str, *, fontname: str = "japan",
+                  fontsize: float = 10.0, color: RGB = (0.15, 0.15, 0.15),
+                  align: int = 0) -> None:
+    """ページに文字を描く。枠に収まらない場合は無言で消えるため例外にする。
+
+    insert_textbox() は入り切らないと負値を返して何も描かない。プレビュー用の
+    見出しが黙って消えるのを防ぐため、ここで必ず検出する。
+    """
+    overflow = page.insert_textbox(rect, pdf_safe_text(text), fontname=fontname,
+                                   fontsize=fontsize, color=color, align=align)
+    if overflow < 0:
+        raise RuntimeError(f"テキストが枠に収まりません（不足 {-overflow:.1f}pt）: {text!r}")
+
+
 def make_sample_drawing(path: str | os.PathLike[str]) -> Path:
     """PDF が手元に無いときの動作確認用に、A3 横のダミー図面を作る。"""
     out = Path(path)
@@ -1197,10 +1224,12 @@ def make_sample_drawing(path: str | os.PathLike[str]) -> Path:
     shape.draw_rect(fitz.Rect(r.x1 - 260, r.y1 - 110, r.x1, r.y1))   # 表題欄
     shape.finish(color=(0.35, 0.35, 0.35), width=0.7)
     shape.commit()
-    title_box = fitz.Rect(r.x1 - 252, r.y1 - 102, r.x1 - 8, r.y1 - 8)
-    if page.insert_textbox(title_box, "サンプル図面\nPDF Stamp Annotator PoC\nA3 横 (420 x 297 mm)",
-                           fontname="japan", fontsize=11, color=(0.2, 0.2, 0.2)) < 0:
-        raise RuntimeError("表題欄のテキストが枠に収まりません")  # 早期に気付けるようにする
+    # 組込み CJK フォントは ASCII も全角で描くため、日本語行と ASCII 行で font を分ける
+    draw_pdf_text(page, fitz.Rect(r.x1 - 250, r.y1 - 98, r.x1 - 10, r.y1 - 74),
+                  "サンプル図面", fontsize=13, color=(0.2, 0.2, 0.2))
+    draw_pdf_text(page, fitz.Rect(r.x1 - 250, r.y1 - 70, r.x1 - 10, r.y1 - 14),
+                  "PDF Stamp Annotator (PoC)\nA3 landscape  420 x 297 mm",
+                  fontname="helv", fontsize=10, color=(0.35, 0.35, 0.35))
     out.parent.mkdir(parents=True, exist_ok=True)
     doc.save(out)
     doc.close()
@@ -1215,6 +1244,124 @@ SAMPLE_ANNOTATIONS: list[dict[str, Any]] = [
     {"page": 0, "symbol_id": "STAMP_CLOUD", "norm_x": 0.6, "norm_y": 0.2, "text": "改訂A"},
     {"page": 0, "symbol_id": "STAMP_CHECK", "norm_x": 0.15, "norm_y": 0.85, "text": "要確認"},
 ]
+
+
+def render_pdf_to_png(pdf_path: str | os.PathLike[str],
+                      out_pattern: str | os.PathLike[str],
+                      dpi: int = 200) -> list[Path]:
+    """PDF の各ページを PNG 画像にする（注釈を含めてレンダリングする）。
+
+    out_pattern に "{page}" があればページ番号（1 始まり）に置換し、
+    無ければ 2 ページ目以降に "_page2" のような接尾辞を付ける。
+    """
+    zoom = dpi / 72.0
+    doc = fitz.open(pdf_path)
+    written: list[Path] = []
+    try:
+        for index in range(doc.page_count):
+            pattern = str(out_pattern)
+            if "{page}" in pattern:
+                target = Path(pattern.format(page=index + 1))
+            else:
+                target = Path(pattern)
+                if index:
+                    target = target.with_name(f"{target.stem}_page{index + 1}{target.suffix}")
+            target.parent.mkdir(parents=True, exist_ok=True)
+            # annots=True で PDF 標準注釈の外観も含めて焼き込む
+            doc[index].get_pixmap(matrix=fitz.Matrix(zoom, zoom), alpha=False,
+                                  annots=True).save(target)
+            written.append(target)
+    finally:
+        doc.close()
+    return written
+
+
+def make_catalog_sheet(catalog: StampCatalog, path: str | os.PathLike[str],
+                       columns: int = 3) -> tuple[Path, list[dict[str, Any]]]:
+    """カタログ全種を並べる下敷き図面と、その各セル中央に置く配置 JSON を作る。
+
+    プレビュー専用の特別扱いはしない。戻り値の JSON をそのまま
+    apply_json_annotations() → save_pdf() に流すので、
+    出来上がる画像は通常の配置パイプラインの実物になる。
+    """
+    rows = math.ceil(len(catalog) / columns)
+    out = Path(path)
+    doc = fitz.open()
+    page = doc.new_page(width=1190.55, height=841.89)            # A3 横
+    margin, header = 28.0, 76.0
+    grid = fitz.Rect(margin, header, page.rect.x1 - margin, page.rect.y1 - margin)
+    cell_w = (grid.x1 - grid.x0) / columns
+    cell_h = (grid.y1 - grid.y0) / rows
+
+    shape = page.new_shape()
+    shape.draw_rect(page.rect + (12, 12, -12, -12))
+    shape.finish(color=(0.35, 0.35, 0.35), width=0.8)
+    shape.commit()
+
+    annotations: list[dict[str, Any]] = []
+    for i, stamp in enumerate(catalog):
+        col, row = i % columns, i // columns
+        cell = fitz.Rect(grid.x0 + col * cell_w, grid.y0 + row * cell_h,
+                         grid.x0 + (col + 1) * cell_w, grid.y0 + (row + 1) * cell_h)
+        cell_shape = page.new_shape()
+        cell_shape.draw_rect(cell + (6, 6, -6, -6))
+        cell_shape.finish(color=(0.78, 0.78, 0.78), width=0.6, dashes="[3 3] 0")
+        cell_shape.commit()
+        # 組込み CJK フォントは ASCII も全角で描くため、日本語行と ASCII 行で font を分ける
+        draw_pdf_text(page, fitz.Rect(cell.x0 + 14, cell.y0 + 10, cell.x1 - 14, cell.y0 + 32),
+                      f"{i + 1}. {stamp.label}", fontsize=11)
+        draw_pdf_text(page, fitz.Rect(cell.x0 + 14, cell.y0 + 34, cell.x1 - 14, cell.y0 + 54),
+                      f"id={stamp.id}  /  shape={stamp.shape}  /  "
+                      f"{stamp.size_mm[0]:g} x {stamp.size_mm[1]:g} mm",
+                      fontname="helv", fontsize=9, color=(0.42, 0.42, 0.42))
+        center = fitz.Point((cell.x0 + cell.x1) / 2, cell.y0 + cell_h * 0.55)
+        annotations.append({
+            "page": 0,
+            "symbol_id": stamp.id,
+            "norm_x": center.x / page.rect.width,
+            "norm_y": center.y / page.rect.height,
+        })
+
+    draw_pdf_text(page, fitz.Rect(margin, 16, page.rect.x1 - margin, 46),
+                  f"スタンプカタログ プレビュー（全 {len(catalog)} 種）",
+                  fontsize=16, color=(0.1, 0.1, 0.1))
+    draw_pdf_text(page, fitz.Rect(margin, 48, page.rect.x1 - margin, 70),
+                  "stamp_catalog.json  /  A3 landscape 420 x 297 mm  /  "
+                  "PDF standard annotations",
+                  fontname="helv", fontsize=10, color=(0.42, 0.42, 0.42))
+    out.parent.mkdir(parents=True, exist_ok=True)
+    doc.save(out)
+    doc.close()
+    return out, annotations
+
+
+def run_preview(args: argparse.Namespace) -> int:
+    """iPad などで目視確認するためのプレビュー PNG 一式を書き出す。"""
+    out_dir = Path(args.out_dir)
+    dpi = args.dpi
+    catalog = StampCatalog.load(args.catalog)
+
+    # 1) サンプル図面にスタンプを配置した PDF → ページごとの PNG
+    sample = (Path(args.input) if args.input
+              else make_sample_drawing(out_dir / "sample_drawing.pdf"))
+    document = AnnotationDocument(catalog, sample)
+    data: Any = Path(args.annotations) if args.annotations else SAMPLE_ANNOTATIONS
+    document.apply_json_annotations(data)
+    stamped = save_pdf(document, out_dir / "stamped.pdf", mode=args.mode)
+    pages = render_pdf_to_png(stamped, out_dir / "preview_stamped_page{page}.png", dpi)
+    for png in pages:
+        print(f"[preview] {png}  ({dpi}dpi)")
+    document.close()
+
+    # 2) カタログ全種を並べた一覧プレビュー
+    sheet, annotations = make_catalog_sheet(catalog, out_dir / "catalog_sheet.pdf")
+    sheet_doc = AnnotationDocument(catalog, sheet)
+    sheet_doc.apply_json_annotations(annotations)
+    sheet_pdf = save_pdf(sheet_doc, out_dir / "stamp_catalog_preview.pdf", mode=args.mode)
+    for png in render_pdf_to_png(sheet_pdf, out_dir / "stamp_catalog_preview.png", dpi):
+        print(f"[preview] {png}  ({dpi}dpi, {len(catalog)} 種)")
+    sheet_doc.close()
+    return 0
 
 
 def run_batch(args: argparse.Namespace) -> int:
@@ -1281,6 +1428,10 @@ def build_arg_parser() -> argparse.ArgumentParser:
                         help="スタンプカタログ JSON (既定: stamp_catalog.json)")
     parser.add_argument("--batch", action="store_true", help="GUI を使わず JSON から一括処理")
     parser.add_argument("--selftest", action="store_true", help="サンプル図面で一連の動作を確認")
+    parser.add_argument("--preview", action="store_true",
+                        help="目視確認用の PNG（配置結果とスタンプ一覧）を書き出す")
+    parser.add_argument("--out-dir", default="out", help="--preview の出力先 (既定: out)")
+    parser.add_argument("--dpi", type=int, default=200, help="--preview の解像度 (既定: 200)")
     parser.add_argument("--input", help="--batch の入力 PDF")
     parser.add_argument("--annotations", help="--batch のアノテーション JSON")
     parser.add_argument("--output", help="出力 PDF")
@@ -1297,6 +1448,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         if args.selftest:
             return run_selftest(args)
+        if args.preview:
+            return run_preview(args)
         if args.batch:
             if not args.input or not args.output:
                 parser.error("--batch には --input と --output が必要です")
