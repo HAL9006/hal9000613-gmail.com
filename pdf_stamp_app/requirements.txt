@@ -1,0 +1,4 @@
+# PDF図面向け インタラクティブスタンプ・アノテーション配置アプリ (PoC)
+# macOS / Python 3.10+
+PySide6>=6.6
+PyMuPDF>=1.23
