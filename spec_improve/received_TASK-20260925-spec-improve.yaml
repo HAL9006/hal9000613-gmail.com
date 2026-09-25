@@ -1,0 +1,65 @@
+# 受領した TASK パケット（会話で受け取った本文をそのまま保存。事前点検の記録用）
+meta:
+  kind: TASK
+  spec_version: "2.0"
+  id: TASK-20260925-spec-improve
+  date: "2026-09-25"
+  from: "Claude（Cello・設計／監査担当）"
+  to: "Claude Code（実行担当）"
+  operation: review
+task: "添付の KD/TASK パケット仕様 v2.0 汎用版を検査し、根拠のある改善を加えた改訂版を作成する"
+context:
+  background: "社内のAI活用事例として公開予定。3回の監査（Codex）を経た完成候補だが、第三者の改善余地を測りたい"
+  premises:
+    - "用途は3つ: コピペでのAI間引継ぎ / AIアプリの設定ファイル / AIへの作業依頼"
+    - "利用者は特別なツールを持たない社内の一般社員。YAMLを読めるAI（ChatGPT / Gemini / Copilot 等）で使う"
+  goal: "改善点ごとに証拠と理由を示した改訂版と、その結果報告が揃っている"
+  kd_refs: []
+inputs:
+  required: ["SPEC_KD-TASKパケット_v2.0_汎用版.yaml（添付）"]
+  optional: []
+discovery:
+  allowed: false
+  scope: []
+  prohibited: ["リポジトリ内の他ファイル", "Web検索"]
+mutation:
+  mode: create_only
+  allowed_targets: []
+  approval_ref: ""
+actions:
+  - {step: 1, do: "仕様書を読み、仕様書と2つの最小例が仕様自身の規則（8節・13節のチェックリスト）を満たすか機械的に検査する", output: "spec_improve/check_original.md"}
+  - {step: 2, do: "規則に違反する不正パケットを10件以上作り、チェックリストで検出できるか試す。検出できないものを欠陥として記録する", output: "spec_improve/adversarial/ と adversarial_result.md"}
+  - {step: 3, do: "社内の一般社員が使う場面を3用途それぞれで想定し、誤解・迷い・矛盾が起きる箇所を列挙する", output: "spec_improve/usability_findings.md"}
+  - {step: 4, do: "ステップ1〜3の所見のうち証拠のあるものだけを直した改訂版を作る", output: "spec_improve/SPEC_KD-TASKパケット_v2.1_改訂案.yaml"}
+  - {step: 5, do: "原本と改訂版の差分を、変更ごとに「根拠となった所見」「理由」を付けて表にする", output: "spec_improve/changelog.md"}
+  - {step: 6, do: "結果を本仕様のKDパケット形式で書く", output: "spec_improve/KD_result.yaml"}
+constraints:
+  - "既存ファイル・既存データの変更・削除禁止（添付の原本も変更しない）"
+  - "原則 P1〜P4 と T1〜T4 を削除・弱体化しない。変える場合は理由を changelog に書き、改訂版には反映せず提案に留める"
+  - "必須項目を増やす場合は、それがないと起きる具体的な失敗を adversarial_result.md で示すこと"
+  - "社内固有の名称・人名・社名を追加しない"
+  - "所見には、検証した / 推論した の区別を付ける"
+forbidden:
+  hard:
+    - "原本ファイルの上書き"
+    - "content / why の略記・記号化を導入する変更"
+    - "検証していない改善効果を「検証済み」と書くこと"
+  soft:
+    - "通信路・認証・索引ツールなど、仕様の範囲外の機能の追加"
+    - "人間向け紹介文の作成（別タスク）"
+success_criteria:
+  - "check_original.md に、原本と2つの最小例のチェック結果（error件数・warning件数）がある"
+  - "不正パケットが10件以上あり、各件の検出可否が記録されている"
+  - "changelog.md の全変更に、根拠となった所見のIDがある"
+  - "改訂版がYAMLとしてパースでき、改訂版の最小例が改訂版のチェックリストで error 0件である"
+  - "原本と改訂版の行数・必須項目数の増減が記録されている"
+  - "KD_result.yaml が、改訂版の KD チェックリストで error 0件である"
+side_effect:
+  new: ["spec_improve/ 配下のファイル一式"]
+  existing: "変更なし"
+report_back:
+  - "発見した欠陥の件数（検証済み / 推論のみ の内訳）"
+  - "不正パケットの検出率（検出数 / 作成数）"
+  - "行数の増減と、必須項目数の増減（数値）"
+  - "原則 P1〜P4・T1〜T4 を変更しない制約を守ったか（YES/NO）"
+note: "TASKパケットの書式自体の読みにくさや矛盾に気づいたら、それも欠陥として usability_findings.md に記録すること"

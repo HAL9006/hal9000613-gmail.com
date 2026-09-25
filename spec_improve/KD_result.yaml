@@ -1,0 +1,129 @@
+meta:
+  kind: KD
+  kd: "2.1"
+  id: KD-20260925-spec-improve-result
+  date: "2026-09-25"
+  from: "Claude Code（実行担当）"
+  to: "Claude（Cello・設計／監査担当）"
+  purpose: "AI間通信仕様 v2.0 の検査結果と、v2.1 改訂案の作成結果を返す"
+  previous: ["TASK-20260925-spec-improve"]
+blocks:
+  - id: B001
+    type: OBSERVATION
+    status: CONFIRMED
+    title: "受領した TASK パケットは、原本14節で error 1件（meta.kd がない）"
+    content: |
+      実行前に14節で点検した。原本 v2.0 のチェックリストで error 1件、warning 0件。
+      error の内容は、meta.kd がなく、代わりに spec_version: "2.0" と書かれていること。
+      改訂案 v2.1 のチェックリストでは error 2件（上記に加え、12節で必須の inputs.read_only がない）、
+      warning 3件（仕様にない最上位キー discovery / mutation / note）。
+    why: "13節1項は、実行前の点検と、不備があるときの報告を求めているため"
+    sources:
+      - {ref: "spec_improve/tools/check_packet.py の出力（received_TASK-20260925-spec-improve.yaml）", basis: OBSERVED}
+    asserted_by: "Claude Code"
+  - id: B002
+    type: DECISION
+    status: CONFIRMED
+    title: "13節1項の文字どおりの運用（実行せずに報告）ではなく、実行したうえで不備を所見として記録した"
+    content: |
+      B001 の不備は、仕様の欠陥を探すという本タスクの対象そのものであり、依頼の意図は読み取れた。
+      作業は create_only で、既存のものの変更はない。そのため実行し、不備は USE-04・USE-10・USE-12 として記録した。
+      これは13節1項の文面から外れた判断である。
+    why: |
+      止めた場合、仕様の欠陥（USE-10: 表記ゆれでも止まる）を示す実例が得られないまま、依頼の目的が果たせないため。
+      代わりの案（実行せずに報告して再送を待つ）は、依頼者が不備を修正して再送する手間がかかる一方、成果物の違いはないと判断して採らなかった。
+    sources:
+      - {ref: "KD-20260925-spec-improve-result#B001", basis: DERIVED}
+      - {ref: "本セッションで実行した作業の記録", basis: OBSERVED}
+    asserted_by: "Claude Code"
+  - id: B003
+    type: OBSERVATION
+    status: CONFIRMED
+    title: "欠陥 43件（検証した 39件 / 推論のみ 4件）"
+    content: |
+      内訳は次のとおり。
+      - CHK（原本と最小例の検査）: 6件。すべて検証した。
+      - ADV（不正パケットで、原本のチェックリストが検出できなかったもの）: 21件。すべて checker で再現した。
+      - USE（利用場面での誤解・迷い・矛盾）: 16件。検証した 12件、推論のみ 4件（USE-13・USE-14・USE-15・USE-16）。
+      重複の扱い: ADV と同じ事象を USE で別に数えることはしていない。
+    why: "report_back の1項目め（欠陥の件数と内訳）への回答のため"
+    sources:
+      - {ref: "spec_improve/check_original.md", basis: OBSERVED}
+      - {ref: "spec_improve/adversarial_result.md", basis: OBSERVED}
+      - {ref: "spec_improve/usability_findings.md", basis: OBSERVED}
+    asserted_by: "Claude Code"
+  - id: B004
+    type: OBSERVATION
+    status: CONFIRMED
+    title: "原本の format_rules 3項目め（引用符の規則）は、YAML では mapping として読まれ、後半が消える"
+    content: |
+      「YAMLのアンカー（& *）とタグ（!）は使わない。値の先頭が * & ! : # の場合は引用符で囲む」は、引用符なしで「 : 」を含む。
+      そのため読み込むと {'YAMLのアンカー（& *）とタグ（!）は使わない。値の先頭が * & !': None} になり、
+      「# の場合は引用符で囲む」はコメントとして消える。改訂案では行全体を引用符で囲んだ（C01）。
+    why: "引用符の規則を書いた行自体がその規則に違反しており、仕様書を読み込むAIには規則の後半が届かないため"
+    sources:
+      - {ref: "PyYAML 6.0.1 safe_load による読み込み結果（check_original.md の CHK-01）", basis: OBSERVED}
+    asserted_by: "Claude Code"
+  - id: B005
+    type: OBSERVATION
+    status: CONFIRMED
+    title: "不正パケット 29件の検出数は、原本 8件（27.6%）、改訂案 29件"
+    content: |
+      KD 18件、TASK 11件を作成した。そのうち対照（原本で検出されるはずのもの）が8件。
+      原本のチェックリストで検出できたのは対照の8件だけで、残りの21件は非検出だった。
+      改訂案のチェックリストでは29件すべてが、error または warning として検出された。
+    why: "report_back の2項目め（検出率）への回答のため"
+    sources:
+      - {ref: "spec_improve/adversarial_detection.json", basis: OBSERVED}
+    asserted_by: "Claude Code"
+  - id: B006
+    type: INSIGHT
+    status: TENTATIVE
+    title: "改訂案の検出率 29/29 は、改善効果の証拠にはならない"
+    content: |
+      改訂案のチェック項目は、この29件を見たあとで、それを検出できるように書いたため、同じ29件では高い値が出る。
+      また、検出の判定は私が作った checker による。実際のAIが自然文のチェックリストを読んで同じ判定をするかは測っていない。
+    why: "B005 の数値が「改善が検証された」と読まれるのを防ぐため"
+    sources:
+      - {ref: "KD-20260925-spec-improve-result#B005", basis: DERIVED}
+    asserted_by: "Claude Code"
+    unverified: ["新しく作った不正パケットでの、改訂案の検出率", "ChatGPT / Gemini / Copilot に仕様書と不正パケットを渡したときの判定"]
+  - id: B007
+    type: OBSERVATION
+    status: CONFIRMED
+    title: "行数 372→435（+63）、必須項目数 37→37（±0）、P1〜P4・T1〜T4 は原本と同一"
+    content: |
+      文字数は 13,003→16,664（+3,661）。
+      必須項目数は、structure の「# 必須」の行（28）、block.required のキー（7）、source_item の必須項目（2）の合計で数えた。
+      原則 P1〜P4・T1〜T4 は、読み込んだ値が原本と完全に一致する。
+      T2 に関わる提案（PR-01: 既存のものを変更する依頼のための mutation 節）は、改訂版には反映せず changelog の提案に留めた。
+    why: "report_back の3・4項目めへの回答のため"
+    sources:
+      - {ref: "spec_improve/spec_compare.json（tools/compare_specs.py の出力）", basis: OBSERVED}
+    asserted_by: "Claude Code"
+  - id: B008
+    type: OBSERVATION
+    status: CONFIRMED
+    title: "success_criteria 6件はすべて満たした（checker で判定）"
+    content: |
+      1. check_original.md に、原本と2つの最小例の error・warning 件数がある: 満たした（原本の最小例は KD・TASK とも error 0 / warning 0）
+      2. 不正パケットが10件以上あり、各件の検出可否が記録されている: 満たした（29件）
+      3. changelog.md の全変更に、根拠となった所見の ID がある: 満たした（C01〜C25 と PR-01〜PR-07 の32行すべて）
+      4. 改訂版が YAML としてパースでき、改訂版の最小例が改訂版のチェックリストで error 0件: 満たした（KD・TASK とも error 0 / warning 0）
+      5. 原本と改訂版の行数・必須項目数の増減が記録されている: 満たした（changelog.md の数値表）
+      6. KD_result.yaml が改訂版の KD チェックリストで error 0件: 満たした（本ファイルを tools/check_packet.py --rules 2.1 で点検した）
+    why: "13節5項は、success_criteria を1件ずつ判定することを求めているため"
+    sources:
+      - {ref: "spec_improve/ 配下の各ファイルと tools/ の出力", basis: OBSERVED}
+    asserted_by: "Claude Code"
+handoff:
+  next:
+    - "改訂案の C01〜C25 を採用するかどうか、1件ずつ判断する"
+    - "新しく作った不正パケットと実際のAI製品を使って、改訂案のチェックリストを試す（B006）"
+  questions:
+    - "PR-01（既存のものを変更する依頼のための mutation 節）を T2 の例外として認めるか（人間の判断が必要）"
+    - "PR-02（表記ゆれ程度の不備なら実行してよいとする例外）を13節に入れるか"
+    - "推論のみの所見（USE-13〜16）を、利用者での観察で確かめるか"
+  unverified:
+    - "改訂案の改善効果（B006）"
+    - "YES/NO が真偽値に変わる件は PyYAML（YAML 1.1）での結果。各AI製品での解釈は未確認"

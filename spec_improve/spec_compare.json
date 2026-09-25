@@ -1,0 +1,60 @@
+{
+  "2.0": {
+    "lines": 372,
+    "chars": 13003,
+    "required": {
+      "structure_comment": 28,
+      "block_required": 7,
+      "source_item": 2,
+      "total": 37
+    },
+    "example@rules2.0": {
+      "errors": [],
+      "warnings": []
+    },
+    "example@rules2.1": {
+      "errors": [],
+      "warnings": []
+    },
+    "task_example@rules2.0": {
+      "errors": [],
+      "warnings": []
+    },
+    "task_example@rules2.1": {
+      "errors": [],
+      "warnings": [
+        "actions の output が side_effect.new に列挙されていない: ['所見文', '所見欄の表', '確認事項欄', '読み取りメモ']"
+      ]
+    }
+  },
+  "2.1": {
+    "lines": 435,
+    "chars": 16664,
+    "required": {
+      "structure_comment": 28,
+      "block_required": 7,
+      "source_item": 2,
+      "total": 37
+    },
+    "example@rules2.0": {
+      "errors": [],
+      "warnings": []
+    },
+    "example@rules2.1": {
+      "errors": [],
+      "warnings": []
+    },
+    "task_example@rules2.0": {
+      "errors": [],
+      "warnings": []
+    },
+    "task_example@rules2.1": {
+      "errors": [],
+      "warnings": []
+    }
+  },
+  "principles_identical": {
+    "P": true,
+    "T": true
+  }
+}

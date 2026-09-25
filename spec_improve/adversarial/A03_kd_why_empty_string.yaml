@@ -1,0 +1,33 @@
+# 不正パケット（内容は架空）
+# 違反: KD 2節/P3: why は必須。不明なら UNKNOWN
+meta:
+  kind: KD
+  kd: "2.0"
+  id: KD-20260925-adv-sample
+  date: "2026-09-25"
+  from: "AI-A（整理担当）"
+  to: "AI-B（報告担当）"
+  purpose: "架空の点検結果を引き継ぐ"
+blocks:
+  - id: B001
+    type: OBSERVATION
+    status: CONFIRMED
+    title: 3号機の温度が前回より5度高い
+    content: 点検記録では前回 40度、今回 45度。
+    why: ""
+    sources:
+      - {ref: "点検記録 2026-09-24", basis: DOCUMENT, page: 2}
+    asserted_by: AI-A
+  - id: B002
+    type: INSIGHT
+    status: TENTATIVE
+    title: 温度上昇は外気温の影響の可能性
+    content: 点検日の外気温が前回より高かったため、外気温の影響が考えられる。
+    why: 設備の異常か環境要因かで対応が変わるため
+    sources:
+      - {ref: "KD-20260925-adv-sample#B001", basis: DERIVED}
+    asserted_by: AI-A
+handoff:
+  next: ["B001 を報告書に転記する"]
+  questions: []
+  unverified: ["外気温の実測値は未確認"]

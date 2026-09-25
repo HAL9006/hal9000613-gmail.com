@@ -1,0 +1,471 @@
+{
+  "A01_kd_blocks_empty.yaml": {
+    "violates": "KD 1節: blocks は1件以上",
+    "2.0": {
+      "level": "非検出",
+      "errors": [],
+      "warnings": []
+    },
+    "2.1": {
+      "level": "error",
+      "errors": [
+        "blocks が空（1件以上必要）"
+      ],
+      "warnings": []
+    }
+  },
+  "A02_kd_sources_empty.yaml": {
+    "violates": "KD 2節: sources は1件以上",
+    "2.0": {
+      "level": "非検出",
+      "errors": [],
+      "warnings": []
+    },
+    "2.1": {
+      "level": "error",
+      "errors": [
+        "B001: 必須項目 sources が欠けている"
+      ],
+      "warnings": []
+    }
+  },
+  "A03_kd_why_empty_string.yaml": {
+    "violates": "KD 2節/P3: why は必須。不明なら UNKNOWN",
+    "2.0": {
+      "level": "非検出",
+      "errors": [],
+      "warnings": []
+    },
+    "2.1": {
+      "level": "error",
+      "errors": [
+        "B001: 必須項目 why が欠けている"
+      ],
+      "warnings": []
+    }
+  },
+  "A04_kd_title_hash_null.yaml": {
+    "violates": "KD 1節 format_rules: 値の先頭が # なら引用符（無引用だとコメント扱いで値が消える）",
+    "2.0": {
+      "level": "非検出",
+      "errors": [],
+      "warnings": []
+    },
+    "2.1": {
+      "level": "error",
+      "errors": [
+        "B001: 必須項目 title が欠けている"
+      ],
+      "warnings": []
+    }
+  },
+  "A05_kd_kind_wrong.yaml": {
+    "violates": "KD 1節: meta.kind は KD",
+    "2.0": {
+      "level": "非検出",
+      "errors": [],
+      "warnings": []
+    },
+    "2.1": {
+      "level": "error",
+      "errors": [
+        "meta.kind が KD ではない: 'TASKS'"
+      ],
+      "warnings": []
+    }
+  },
+  "A06_kd_anchor_alias.yaml": {
+    "violates": "KD 1節 format_rules: アンカー（& *）を使わない",
+    "2.0": {
+      "level": "非検出",
+      "errors": [],
+      "warnings": []
+    },
+    "2.1": {
+      "level": "error",
+      "errors": [
+        "アンカー / エイリアス / タグを使っている: anchor &who (line 8)",
+        "アンカー / エイリアス / タグを使っている: alias *who (line 20)"
+      ],
+      "warnings": []
+    }
+  },
+  "A07_kd_japanese_keys_and_100pct.yaml": {
+    "violates": "KD 1節 format_rules: キーは英小文字 / 5節: 「100%」と書かない",
+    "2.0": {
+      "level": "非検出",
+      "errors": [],
+      "warnings": []
+    },
+    "2.1": {
+      "level": "error",
+      "errors": [
+        "キーが英小文字でない: $.blocks[0].確信度"
+      ],
+      "warnings": [
+        "B001: 仕様にないキー '確信度'"
+      ]
+    }
+  },
+  "A08_kd_observation_derived_confirmed.yaml": {
+    "violates": "P2（OBSERVATION は実際に確認した事実）/ 5節（未検証を CONFIRMED にしない）",
+    "2.0": {
+      "level": "非検出",
+      "errors": [],
+      "warnings": []
+    },
+    "2.1": {
+      "level": "warning",
+      "errors": [],
+      "warnings": [
+        "B001: OBSERVATION なのに根拠が DERIVED/UNKNOWN だけ（P2）",
+        "B001: CONFIRMED なのに根拠が DERIVED/UNKNOWN だけ（5節: 未検証を CONFIRMED にしない）"
+      ]
+    }
+  },
+  "A09_kd_duplicate_block_id.yaml": {
+    "violates": "KD 7節 error: ブロックの id が重複（対照: 検出されるべき）",
+    "2.0": {
+      "level": "error",
+      "errors": [
+        "ブロックの id がパケット内で重複している"
+      ],
+      "warnings": []
+    },
+    "2.1": {
+      "level": "error",
+      "errors": [
+        "ブロックの id がパケット内で重複している"
+      ],
+      "warnings": []
+    }
+  },
+  "A10_kd_type_out_of_vocab.yaml": {
+    "violates": "KD 7節 error: type が語彙外（対照）",
+    "2.0": {
+      "level": "error",
+      "errors": [
+        "B002: type が語彙外: 'FACT'"
+      ],
+      "warnings": []
+    },
+    "2.1": {
+      "level": "error",
+      "errors": [
+        "B002: type が語彙外: 'FACT'"
+      ],
+      "warnings": []
+    }
+  },
+  "A11_kd_supersedes_self.yaml": {
+    "violates": "KD 7節 error: supersedes が自分自身（対照）",
+    "2.0": {
+      "level": "error",
+      "errors": [
+        "B002: supersedes が自分自身を指している"
+      ],
+      "warnings": []
+    },
+    "2.1": {
+      "level": "error",
+      "errors": [
+        "B002: supersedes が自分自身を指している"
+      ],
+      "warnings": []
+    }
+  },
+  "A12_kd_conflicting_supersede.yaml": {
+    "violates": "KD 4節: 同じ旧ブロックを関係のない複数の CONFIRMED が置き換えたら矛盾として人間に確認",
+    "2.0": {
+      "level": "非検出",
+      "errors": [],
+      "warnings": []
+    },
+    "2.1": {
+      "level": "warning",
+      "errors": [],
+      "warnings": [
+        "KD-20260925-adv-sample#B002: 複数の CONFIRMED ブロック ['B003', 'B004'] が置き換えている（4節: 矛盾として人間に確認）"
+      ]
+    }
+  },
+  "A13_kd_bad_formats.yaml": {
+    "violates": "KD 1節: meta.id は KD-YYYYMMDD-<slug>、date は YYYY-MM-DD / 2節: block.id は B001 形式",
+    "2.0": {
+      "level": "非検出",
+      "errors": [],
+      "warnings": [
+        "2: 別パケットへの参照（手元で確認できない場合は要注意）: KD-20260925-adv-sample#B001"
+      ]
+    },
+    "2.1": {
+      "level": "error",
+      "errors": [
+        "meta.id が KD-YYYYMMDD-<slug> の形式でない: 'kd_0925'",
+        "meta.date が YYYY-MM-DD でない: '2026/9/25'",
+        "2: block.id が B001 形式でない"
+      ],
+      "warnings": [
+        "2: 別パケットへの参照（手元で確認できない場合は要注意）: KD-20260925-adv-sample#B001"
+      ]
+    }
+  },
+  "A14_kd_page_invalid.yaml": {
+    "violates": "KD 2節 source_item: page は1以上の整数",
+    "2.0": {
+      "level": "非検出",
+      "errors": [],
+      "warnings": []
+    },
+    "2.1": {
+      "level": "error",
+      "errors": [
+        "B001: page が1以上の整数でない: 0"
+      ],
+      "warnings": []
+    }
+  },
+  "A15_kd_duplicate_yaml_key.yaml": {
+    "violates": "KD 1節: 全体が妥当なYAML（YAML仕様ではキー重複は不可。多くの読み手は黙って後勝ち）",
+    "2.0": {
+      "level": "非検出",
+      "errors": [],
+      "warnings": [
+        "B001: why が UNKNOWN"
+      ]
+    },
+    "2.1": {
+      "level": "error",
+      "errors": [
+        "同じ階層に同じキーが2回ある: why (line 18)"
+      ],
+      "warnings": [
+        "B001: why が UNKNOWN"
+      ]
+    }
+  },
+  "A16_kd_fullwidth_indent.yaml": {
+    "violates": "KD 1節: 全体が妥当なYAML（全角スペースでインデント）（対照）",
+    "2.0": {
+      "level": "error",
+      "errors": [
+        "meta.purpose が欠けている"
+      ],
+      "warnings": []
+    },
+    "2.1": {
+      "level": "error",
+      "errors": [
+        "キーが英小文字でない: $.　 purpose",
+        "meta.purpose が欠けている"
+      ],
+      "warnings": [
+        "最上位に仕様にないキー '\\u3000 purpose'"
+      ]
+    }
+  },
+  "A17_kd_person_without_source.yaml": {
+    "violates": "KD 7節 warning: asserted_by が人なのに sources がその発言を指さない（対照）",
+    "2.0": {
+      "level": "warning",
+      "errors": [],
+      "warnings": [
+        "B001: asserted_by が人なのに、その発言を指す sources がない"
+      ]
+    },
+    "2.1": {
+      "level": "warning",
+      "errors": [],
+      "warnings": [
+        "B001: asserted_by が人なのに、その発言を指す sources がない"
+      ]
+    }
+  },
+  "A18_kd_no_handoff.yaml": {
+    "violates": "KD 1節: handoff は「引き継ぎでは実質必須」",
+    "2.0": {
+      "level": "非検出",
+      "errors": [],
+      "warnings": []
+    },
+    "2.1": {
+      "level": "warning",
+      "errors": [],
+      "warnings": [
+        "handoff がない（引き継ぎ用途なら next / questions / unverified を書く）"
+      ]
+    }
+  },
+  "T01_task_no_context.yaml": {
+    "violates": "TASK 12節: context は必須",
+    "2.0": {
+      "level": "非検出",
+      "errors": [],
+      "warnings": []
+    },
+    "2.1": {
+      "level": "error",
+      "errors": [
+        "context がない"
+      ],
+      "warnings": []
+    }
+  },
+  "T02_task_no_read_only.yaml": {
+    "violates": "TASK 12節: inputs.read_only は必須",
+    "2.0": {
+      "level": "非検出",
+      "errors": [],
+      "warnings": []
+    },
+    "2.1": {
+      "level": "error",
+      "errors": [
+        "inputs.read_only: true がない"
+      ],
+      "warnings": []
+    }
+  },
+  "T03_task_operation_out_of_vocab.yaml": {
+    "violates": "TASK 12節: operation は execute・review・research のいずれか",
+    "2.0": {
+      "level": "非検出",
+      "errors": [],
+      "warnings": []
+    },
+    "2.1": {
+      "level": "error",
+      "errors": [
+        "meta.operation が execute / review / research 以外: 'fix'"
+      ],
+      "warnings": []
+    }
+  },
+  "T04_task_lock_but_overwrite_action.yaml": {
+    "violates": "T2 二重ロック: 既存を変えない宣言と矛盾する作業",
+    "2.0": {
+      "level": "非検出",
+      "errors": [],
+      "warnings": []
+    },
+    "2.1": {
+      "level": "warning",
+      "errors": [],
+      "warnings": [
+        "existing が「変更なし」なのに actions に変更を示す語 ['上書き'] がある"
+      ]
+    }
+  },
+  "T05_task_report_back_open.yaml": {
+    "violates": "TASK 12節: report_back は数値か YES/NO で答えられるもの3〜5件",
+    "2.0": {
+      "level": "非検出",
+      "errors": [],
+      "warnings": []
+    },
+    "2.1": {
+      "level": "warning",
+      "errors": [],
+      "warnings": [
+        "report_back が 7 件（3〜5件）"
+      ]
+    }
+  },
+  "T06_task_subjective_criteria.yaml": {
+    "violates": "T3: 完了条件は数値か状態で確かめられるものだけ",
+    "2.0": {
+      "level": "非検出",
+      "errors": [],
+      "warnings": []
+    },
+    "2.1": {
+      "level": "warning",
+      "errors": [],
+      "warnings": [
+        "success_criteria に主観的な基準 ['正確']: 表が正確である",
+        "success_criteria に主観的な基準 ['わかりやすい']: 表がわかりやすい"
+      ]
+    }
+  },
+  "T07_task_side_effect_incomplete.yaml": {
+    "violates": "TASK 12節: side_effect.new は新しく作るものをすべて列挙",
+    "2.0": {
+      "level": "非検出",
+      "errors": [],
+      "warnings": []
+    },
+    "2.1": {
+      "level": "warning",
+      "errors": [],
+      "warnings": [
+        "actions の output が side_effect.new に列挙されていない: ['抜き出しメモ']"
+      ]
+    }
+  },
+  "T08_task_two_line.yaml": {
+    "violates": "TASK 14節 error: task が複数行（対照）",
+    "2.0": {
+      "level": "error",
+      "errors": [
+        "task が複数行である、または空である"
+      ],
+      "warnings": []
+    },
+    "2.1": {
+      "level": "error",
+      "errors": [
+        "task が複数行である、または空である"
+      ],
+      "warnings": []
+    }
+  },
+  "T09_task_hard_one.yaml": {
+    "violates": "TASK 14節 error: forbidden.hard が2件未満（対照）",
+    "2.0": {
+      "level": "error",
+      "errors": [
+        "forbidden.hard が2件未満、または forbidden.soft が1件未満"
+      ],
+      "warnings": []
+    },
+    "2.1": {
+      "level": "error",
+      "errors": [
+        "forbidden.hard が2件未満、または forbidden.soft が1件未満"
+      ],
+      "warnings": []
+    }
+  },
+  "T10_task_spec_version_alias.yaml": {
+    "violates": "TASK 12節: 版は meta.kd に書く（受領パケットと同じ別名 spec_version）（対照）",
+    "2.0": {
+      "level": "error",
+      "errors": [
+        "meta.kd が欠けている"
+      ],
+      "warnings": []
+    },
+    "2.1": {
+      "level": "error",
+      "errors": [
+        "meta.kd が欠けている"
+      ],
+      "warnings": []
+    }
+  },
+  "T11_task_no_inputs.yaml": {
+    "violates": "TASK 12節: inputs は必須",
+    "2.0": {
+      "level": "非検出",
+      "errors": [],
+      "warnings": []
+    },
+    "2.1": {
+      "level": "error",
+      "errors": [
+        "inputs がない"
+      ],
+      "warnings": []
+    }
+  }
+}
