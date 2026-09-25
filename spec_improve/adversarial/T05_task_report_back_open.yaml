@@ -1,0 +1,43 @@
+# 不正パケット（内容は架空）
+# 違反: TASK 12節: report_back は数値か YES/NO で答えられるもの3〜5件
+meta:
+  kind: TASK
+  kd: "2.0"
+  id: TASK-20260925-adv-sample
+  date: "2026-09-25"
+  from: "AI-A"
+  to: "AI-B"
+  operation: execute
+task: "架空の点検記録から温度の一覧表を作る"
+context:
+  background: "点検結果を一覧で確認したい"
+  premises: ["点検記録は1ファイル"]
+  goal: "温度一覧表が1枚で完成している"
+  kd_refs: []
+inputs:
+  required: ["点検記録.xlsx"]
+  optional: []
+  read_only: true
+actions:
+  - {step: 1, do: "点検記録から号機と温度を抜き出す", output: "抜き出しメモ"}
+  - {step: 2, do: "号機順に並べて表にする", output: "温度一覧表"}
+constraints:
+  - "既存ファイル・既存データの変更・削除禁止"
+forbidden:
+  hard: ["点検記録の上書き", "記録にない数値の記載"]
+  soft: ["原因の推定（別作業）"]
+success_criteria:
+  - "表の行数が点検記録の号機数と一致する"
+  - "温度の値が点検記録と一致する"
+  - "表が1枚に収まっている"
+side_effect:
+  new: ["抜き出しメモ", "温度一覧表"]
+  existing: "変更なし"
+report_back:
+  - "感想"
+  - "気づいたこと"
+  - "改善案"
+  - "苦労した点"
+  - "次にやりたいこと"
+  - "所要時間の内訳"
+  - "その他"

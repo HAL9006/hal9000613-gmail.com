@@ -1,0 +1,15 @@
+# 不正パケット（内容は架空）
+# 違反: KD 1節: blocks は1件以上
+meta:
+  kind: KD
+  kd: "2.0"
+  id: KD-20260925-adv-sample
+  date: "2026-09-25"
+  from: "AI-A（整理担当）"
+  to: "AI-B（報告担当）"
+  purpose: "架空の点検結果を引き継ぐ"
+blocks: []
+handoff:
+  next: []
+  questions: []
+  unverified: []
